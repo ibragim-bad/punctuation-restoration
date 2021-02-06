@@ -4,6 +4,7 @@ import torch
 import argparse
 from model import DeepPunctuation, DeepPunctuationCRF
 from config import *
+from datetime import datetime
 
 parser = argparse.ArgumentParser(description='Punctuation restoration inference on text file')
 parser.add_argument('--cuda', default=True, type=lambda x: (str(x).lower() == 'true'), help='use cuda if available')
@@ -38,14 +39,19 @@ deep_punctuation.to(device)
 
 
 def inference():
-    deep_punctuation.load_state_dict(torch.load(model_save_path))
+    #deep_punctuation.load_state_dict(torch.load(model_save_path, map_location=torch.device(device)))
     deep_punctuation.eval()
 
     with open(args.in_file, 'r', encoding='utf-8') as f:
         text = f.read()
     text = re.sub(r"[,:\-–.!;?]", '', text)
+    print(len(text))
+    print(len(text.split()))
+    text = ' '.join([text] * 3)
+
     words_original_case = text.split()
     words = text.lower().split()
+    words = words
 
     word_pos = 0
     sequence_len = args.sequence_length
@@ -59,6 +65,7 @@ def inference():
         x = [TOKEN_IDX[token_style]['START_SEQ']]
         y_mask = [0]
 
+        a = datetime.now()
         while len(x) < sequence_len and word_pos < len(words):
             tokens = tokenizer.tokenize(words[word_pos])
             if len(tokens) + len(x) >= sequence_len:
@@ -81,22 +88,31 @@ def inference():
         y_mask = torch.tensor(y_mask)
         attn_mask = torch.tensor(attn_mask)
         x, attn_mask, y_mask = x.to(device), attn_mask.to(device), y_mask.to(device)
-
+        b = datetime.now()
+        print('tokenize')
+        print(b - a)
+        
         with torch.no_grad():
             if args.use_crf:
                 y = torch.zeros(x.shape[0])
+
                 y_predict = deep_punctuation(x, attn_mask, y)
                 y_predict = y_predict.view(-1)
             else:
+                c = datetime.now()
                 y_predict = deep_punctuation(x, attn_mask)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 y_predict = torch.argmax(y_predict, dim=1).view(-1)
+                d = datetime.now()
+                print(f'words len {len(words)}')
+                print('model')
+                print(d - c)
         for i in range(y_mask.shape[0]):
             if y_mask[i] == 1:
                 result += words_original_case[decode_idx] + punctuation_map[y_predict[i].item()] + ' '
                 decode_idx += 1
-    print('Punctuated text')
-    print(result)
+    # print('Punctuated text')
+    # print(result)
     with open(args.out_file, 'w', encoding='utf-8') as f:
         f.write(result)
 

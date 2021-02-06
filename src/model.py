@@ -23,7 +23,9 @@ class DeepPunctuation(nn.Module):
 
     def forward(self, x, attn_masks):
         if len(x.shape) == 1:
-            x = x.view(1, x.shape[0])  # add dummy batch for single sample
+            x = x.view(1, x.shape[0])
+            attn_masks = attn_masks.view(1, -1)
+            #print(x.shape, attn_masks.shape)  # add dummy batch for single sample
         # (B, N, E) -> (B, N, E)
         x = self.bert_layer(x, attention_mask=attn_masks)[0]
         # (B, N, E) -> (N, B, E)
