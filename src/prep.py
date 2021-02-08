@@ -60,7 +60,10 @@ df = pd.DataFrame({'text': x, 'label': y})
 
 from sklearn.model_selection import train_test_split
 
-train, test = train_test_split(df, test_size=0.1)
+coms = df[df.label == 'COMMA']
+splitter = coms.index.values[len(coms) - len(coms)//8]
+
+train, test = df.iloc[:splitter + 1], df.iloc[splitter + 1:]
 
 train.to_csv('data/train_ru.tsv', sep='\t',index=False, header=False)
 test.to_csv('data/test_ru.tsv', sep='\t', index=False, header=False)
