@@ -62,5 +62,5 @@ from sklearn.model_selection import train_test_split
 
 train, test = train_test_split(df, test_size=0.1)
 
-train.to_csv('data/train_ru.tsv', sep='\t',index=False)
-test.to_csv('data/test_ru.tsv', sep='\t', index=False)
+train.to_csv('data/train_ru.tsv', sep='\t',index=False, header=False)
+test.to_csv('data/test_ru.tsv', sep='\t', index=False, header=False)
