@@ -60,10 +60,13 @@ class Preprocessor(object):
         return df
 
 
-
-# prp = Preprocessor()
-# t = prp.prep_file(FN)
-# t.to_csv('data/new_r.tsv', sep='\t',index=False, header=False)
+if __name__ == '__main__':
+    import sys
+    fn = sys.argv[1]
+    tof = sys.argv[2]
+    prp = Preprocessor()
+    t = prp.prep_file(fn)
+    t.to_csv(tof, sep='\t',index=False, header=False)
 
 
 
