@@ -14,7 +14,7 @@ class Preprocessor(object):
     def clean_extra(self, s):
         s = s.replace('!', '.')
         s = s.replace('...', '.')
-        s = s.replace(':', ',')
+        #s = s.replace(':', ',')
         s = s.replace(';', ',')
         s = self.pattern.sub('', s)
         l = s.split()

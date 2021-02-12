@@ -8,6 +8,7 @@ from tqdm import tqdm
 import random
 from glob import glob
 from prep import Preprocessor
+import pandas as pd
 
 from argparser import parse_arguments
 from dataset import Dataset
@@ -72,7 +73,7 @@ else:
 deep_punctuation.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(deep_punctuation.parameters(), lr=args.lr, weight_decay=args.decay)
-
+#deep_punctuation.load_state_dict(torch.load(model_save_path, map_location=torch.device(device)))
 
 def validate(data_loader):
     """
@@ -170,9 +171,14 @@ def train():
     
     for epoch in range(args.epoch):
         fn = random.choice(fs)
-        df = prepr.prep_file(fn)
+ 
+        try:
+            df = prepr.prep_file(fn)
+        except:
+            print(f'error {fn}')
+            fn = random.choice(fs)
+            df = prepr.prep_file(fn)
         str_df = df.to_csv(sep='\t', header=None, index=False)
-        
         train_set = Dataset(str_df, tokenizer=tokenizer, sequence_len=sequence_len,
                         token_style=token_style, is_train=True, augment_rate=ar, augment_type=aug_type)
         
@@ -219,10 +225,12 @@ def train():
             f.write(log + '\n')
         print(log)
 
-        if epoch % 5 == 0:
-            fn = random.choice(fs)
-            df = prepr.prep_file(fn)
-            str_df = df.to_csv(sep='\t')
+        if epoch % 25 == 0:
+            #fn = random.choice(fs)
+            df = pd.read_csv('data/test_ru.tsv', sep='\t', header=None)
+
+            #df = prepr.prep_file(fn)
+            str_df =df.to_csv(sep='\t', header=None, index=False)
             
             val_set = Dataset(str_df, tokenizer=tokenizer, sequence_len=sequence_len,
                             token_style=token_style, is_train=True, augment_rate=ar, augment_type=aug_type)

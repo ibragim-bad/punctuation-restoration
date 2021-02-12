@@ -39,7 +39,7 @@ deep_punctuation.to(device)
 
 
 def inference():
-    #deep_punctuation.load_state_dict(torch.load(model_save_path, map_location=torch.device(device)))
+    deep_punctuation.load_state_dict(torch.load(model_save_path, map_location=torch.device(device)))
     deep_punctuation.eval()
 
     with open(args.in_file, 'r', encoding='utf-8') as f:
@@ -47,7 +47,6 @@ def inference():
     text = re.sub(r"[,:\-–.!;?]", '', text)
     print(len(text))
     print(len(text.split()))
-    text = ' '.join([text] * 3)
 
     words_original_case = text.split()
     words = text.lower().split()
@@ -57,9 +56,7 @@ def inference():
     sequence_len = args.sequence_length
     result = ""
     decode_idx = 0
-    punctuation_map = {0: '', 1: ',', 2: '.', 3: '?'}
-    if args.language != 'en':
-        punctuation_map[2] = '।'
+    punctuation_map = {0: '', 1: '.', 2: ',', 3: '?'}
 
     while word_pos < len(words):
         x = [TOKEN_IDX[token_style]['START_SEQ']]
