@@ -15,45 +15,45 @@ def parse_data(file_path, tokenizer, sequence_len, token_style):
     punctuation_mask is used to ignore special indices like padding and intermediate sub-word token during evaluation
     """
     data_items = []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        lines = [line for line in f.read().split('\n') if line.strip()]
-        idx = 0
-        # loop until end of the entire text
-        while idx < len(lines):
-            x = [TOKEN_IDX[token_style]['START_SEQ']]
-            y = [0]
-            y_mask = [1]  # which positions we need to consider while evaluating i.e., ignore pad or sub tokens
+    # with open(file_path, 'r', encoding='utf-8') as f:
+    lines = [line for line in file_path.split('\n') if line.strip()]
+    idx = 0
+    # loop until end of the entire text
+    while idx < len(lines):
+        x = [TOKEN_IDX[token_style]['START_SEQ']]
+        y = [0]
+        y_mask = [1]  # which positions we need to consider while evaluating i.e., ignore pad or sub tokens
 
             # loop until we have required sequence length
             # -1 because we will have a special end of sequence token at the end
-            while len(x) < sequence_len - 1 and idx < len(lines):
-                word, punc = lines[idx].split('\t')
-                tokens = tokenizer.tokenize(word)
-                # if taking these tokens exceeds sequence length we finish current sequence with padding
-                # then start next sequence from this token
-                if len(tokens) + len(x) >= sequence_len:
-                    break
+        while len(x) < sequence_len - 1 and idx < len(lines):
+            word, punc = lines[idx].split('\t')
+            tokens = tokenizer.tokenize(word)
+            # if taking these tokens exceeds sequence length we finish current sequence with padding
+            # then start next sequence from this token
+            if len(tokens) + len(x) >= sequence_len:
+                break
+            else:
+                for i in range(len(tokens) - 1):
+                    x.append(tokenizer.convert_tokens_to_ids(tokens[i]))
+                    y.append(0)
+                    y_mask.append(0)
+                if len(tokens) > 0:
+                    x.append(tokenizer.convert_tokens_to_ids(tokens[-1]))
                 else:
-                    for i in range(len(tokens) - 1):
-                        x.append(tokenizer.convert_tokens_to_ids(tokens[i]))
-                        y.append(0)
-                        y_mask.append(0)
-                    if len(tokens) > 0:
-                        x.append(tokenizer.convert_tokens_to_ids(tokens[-1]))
-                    else:
-                        x.append(TOKEN_IDX[token_style]['UNK'])
-                    y.append(punctuation_dict[punc])
-                    y_mask.append(1)
-                    idx += 1
-            x.append(TOKEN_IDX[token_style]['END_SEQ'])
-            y.append(0)
-            y_mask.append(1)
-            if len(x) < sequence_len:
-                x = x + [TOKEN_IDX[token_style]['PAD'] for _ in range(sequence_len - len(x))]
-                y = y + [0 for _ in range(sequence_len - len(y))]
-                y_mask = y_mask + [0 for _ in range(sequence_len - len(y_mask))]
-            attn_mask = [1 if token != TOKEN_IDX[token_style]['PAD'] else 0 for token in x]
-            data_items.append([x, y, attn_mask, y_mask])
+                    x.append(TOKEN_IDX[token_style]['UNK'])
+                y.append(punctuation_dict[punc])
+                y_mask.append(1)
+                idx += 1
+        x.append(TOKEN_IDX[token_style]['END_SEQ'])
+        y.append(0)
+        y_mask.append(1)
+        if len(x) < sequence_len:
+            x = x + [TOKEN_IDX[token_style]['PAD'] for _ in range(sequence_len - len(x))]
+            y = y + [0 for _ in range(sequence_len - len(y))]
+            y_mask = y_mask + [0 for _ in range(sequence_len - len(y_mask))]
+        attn_mask = [1 if token != TOKEN_IDX[token_style]['PAD'] else 0 for token in x]
+        data_items.append([x, y, attn_mask, y_mask])
     return data_items
 
 
