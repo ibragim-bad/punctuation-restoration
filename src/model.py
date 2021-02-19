@@ -24,12 +24,13 @@ class Student(nn.Module):
         self.linear = nn.Linear(in_features=hidden_size*2, out_features=len(punctuation_dict))
         self.proj_lin_1 = nn.Linear(in_features=hidden_size, out_features=768)
         self.proj_lin_2 = nn.Linear(in_features=hidden_size, out_features=768)
-        self.proj_lin_3 = nn.Linear(in_features=hidden_size, out_features=768)
+        #self.proj_lin_3 = nn.Linear(in_features=hidden_size, out_features=768)
 
 
     def forward(self, input_ids, attention_mask):
-        # if len(x.shape) == 1:
-        #     x = x.view(1, x.shape[0])  # add dummy batch for single sample
+        if len(input_ids.shape) == 1:
+            input_ids = input_ids.view(1, input_ids.shape[0])
+            attention_mask = attention_mask.view(1, -1)  # add dummy batch for single sample
         # (B, N, E) -> (B, N, E)
         x, _,hs = self.bert_layer(input_ids, attention_mask=attention_mask)
 
@@ -42,8 +43,8 @@ class Student(nn.Module):
 
         pr1 = self.proj_lin_1(hs[0])
         pr2 = self.proj_lin_2(hs[1])
-        pr3 = self.proj_lin_3(hs[2])
-        return x, pr1, pr2, pr3
+        #pr3 = self.proj_lin_3(hs[2])
+        return x, pr1, pr2, 0
 
 class Teacher(nn.Module):
     def __init__(self, pretrained_model, freeze_bert=True, lstm_dim=-1):

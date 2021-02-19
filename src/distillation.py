@@ -204,10 +204,10 @@ def train():
             loss = criterion(y_predict, y)
 
             loss_1 = mse(s_hs_1, hs[0])
-            loss_2 = mse(s_hs_2, hs[1])
-            loss_3 = mse(s_hs_3, hs[2])
+            loss_2 = mse(s_hs_2, hs[10])
+            #loss_3 = mse(s_hs_3, hs[2])
 
-            wloss =  (loss_1 + loss_2 + loss_3) / 3
+            wloss =  (loss_1 + loss_2) / 3
             total_loss = (wloss * 0.3 + loss * 0.7) 
             y_predict = torch.argmax(y_predict, dim=1).view(-1)
 

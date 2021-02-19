@@ -1,10 +1,12 @@
 import re
 import torch
+import os
 
 import argparse
-from model import DeepPunctuation, DeepPunctuationCRF
+from model import DeepPunctuation, Student
 from config import *
 from datetime import datetime
+import json
 
 parser = argparse.ArgumentParser(description='Punctuation restoration inference on text file')
 parser.add_argument('--cuda', default=True, type=lambda x: (str(x).lower() == 'true'), help='use cuda if available')
@@ -19,7 +21,7 @@ parser.add_argument('--weight-path', default='xlm-roberta-large.pt', type=str, h
 parser.add_argument('--sequence-length', default=256, type=int,
                     help='sequence length to use when preparing dataset (default 256)')
 parser.add_argument('--out-file', default='data/test_en_out.txt', type=str, help='output file location')
-
+parser.add_argument('--student', default='bert-small.json', type=str, help='student config')
 args = parser.parse_args()
 
 # tokenizer
@@ -27,19 +29,21 @@ tokenizer = MODELS[args.pretrained_model][1].from_pretrained(args.pretrained_mod
 token_style = MODELS[args.pretrained_model][3]
 
 # logs
-model_save_path = args.weight_path
-
+#model_save_path = args.weight_path
+st_model_save_path = args.weight_path
 # Model
 device = torch.device('cuda' if (args.cuda and torch.cuda.is_available()) else 'cpu')
-if args.use_crf:
-    deep_punctuation = DeepPunctuationCRF(args.pretrained_model, freeze_bert=False, lstm_dim=args.lstm_dim)
-else:
-    deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=False, lstm_dim=args.lstm_dim)
+deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=False, lstm_dim=args.lstm_dim)
+# deep_punctuation.to(device)
+
+with open(args.student) as f:
+    cfg = json.load(f)
+
+#deep_punctuation = Student(cfg)
 deep_punctuation.to(device)
 
-
 def inference():
-    deep_punctuation.load_state_dict(torch.load(model_save_path, map_location=torch.device(device)))
+    deep_punctuation.load_state_dict(torch.load(st_model_save_path, map_location=torch.device(device)))
     deep_punctuation.eval()
 
     with open(args.in_file, 'r', encoding='utf-8') as f:
@@ -97,7 +101,7 @@ def inference():
                 y_predict = y_predict.view(-1)
             else:
                 c = datetime.now()
-                y_predict = deep_punctuation(x, attn_mask)
+                y_predict, _= deep_punctuation(x, attn_mask)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 y_predict = torch.argmax(y_predict, dim=1).view(-1)
                 d = datetime.now()
