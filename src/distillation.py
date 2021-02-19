@@ -84,12 +84,12 @@ def validate(data_loader):
             x, y, att, y_mask = x.to(device), y.to(device), att.to(device), y_mask.to(device)
             y_mask = y_mask.view(-1)
             if args.use_crf:
-                y_predict = studet_deep(x, att, y)
+                y_predict, _,_,_ = studet_deep(x, att, y)
                 loss = studet_deep.log_likelihood(x, att, y)
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
-                y_predict = studet_deep(x, att)
+                y_predict, _,_,_ = studet_deep(x, att)
                 y = y.view(-1)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 loss = criterion(y_predict, y)
@@ -120,11 +120,11 @@ def test(data_loader):
             x, y, att, y_mask = x.to(device), y.to(device), att.to(device), y_mask.to(device)
             y_mask = y_mask.view(-1)
             if args.use_crf:
-                y_predict = studet_deep(x, att, y)
+                y_predict, _,_,_ = studet_deep(x, att, y)
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
-                y_predict = studet_deep(x, att)
+                y_predict, _,_,_ = studet_deep(x, att)
                 y = y.view(-1)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 y_predict = torch.argmax(y_predict, dim=1).view(-1)
@@ -180,6 +180,7 @@ def train():
         train_loader = torch.utils.data.DataLoader(train_set, **data_loader_params)
 
         train_loss = 0.0
+        mse_loss = 0.0
         train_iteration = 0
         correct = 0
         total = 0
@@ -195,25 +196,26 @@ def train():
             # else:
             deep_punctuation.eval()  # manually set DeepPunctuation model to eval mode
             with torch.no_grad():
-                y_predict_t, t_hs_1, t_hs_2, t_hs_3 = deep_punctuation(x, att, distil=True)
+                y_predict_t, hs = deep_punctuation(x, att)
 
             y_predict, s_hs_1, s_hs_2, s_hs_3 = studet_deep(x, att)
             y_predict = y_predict.view(-1, y_predict.shape[2])
             y = y.view(-1)
             loss = criterion(y_predict, y)
 
-            loss_1 = mse(s_hs_1, t_hs_1)
-            loss_2 = mse(s_hs_2, t_hs_2)
-            loss_3 = mse(s_hs_3, t_hs_3)
+            loss_1 = mse(s_hs_1, hs[0])
+            loss_2 = mse(s_hs_2, hs[1])
+            loss_3 = mse(s_hs_3, hs[2])
 
-            wloss =  (loss_1, loss_2, loss_3) / 3
-            total_loss = (wloss + loss) / 2
+            wloss =  (loss_1 + loss_2 + loss_3) / 3
+            total_loss = (wloss * 0.3 + loss * 0.7) 
             y_predict = torch.argmax(y_predict, dim=1).view(-1)
 
             correct += torch.sum(y_mask * (y_predict == y).long()).item()
 
             optimizer.zero_grad()
             train_loss += loss.item()
+            mse_loss += wloss.item()
             train_iteration += 1
             total_loss.backward()
 
@@ -226,7 +228,8 @@ def train():
             total += torch.sum(y_mask).item()
 
         train_loss /= train_iteration
-        log = 'epoch: {}, Train loss: {}, Train accuracy: {}'.format(epoch, train_loss, correct / total)
+        mse_loss /= train_iteration
+        log = 'epoch: {}, Train loss: {}, MSEL {}, Train accuracy: {}'.format(epoch, train_loss, mse_loss, correct / total)
         with open(log_path, 'a') as f:
             f.write(log + '\n')
         print(log)
