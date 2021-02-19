@@ -7,6 +7,7 @@ def parse_arguments():
     parser.add_argument('--cuda', default=True, type=lambda x: (str(x).lower() == 'true'), help='use cuda if available')
     parser.add_argument('--seed', default=1, type=int, help='random seed')
     parser.add_argument('--pretrained-model', default='roberta-large', type=str, help='pretrained language model')
+    parser.add_argument('--student', default='bert-small.json', type=str, help='student config')
     parser.add_argument('--freeze-bert', default=False, type=lambda x: (str(x).lower() == 'true'),
                         help='Freeze BERT layers or not')
     parser.add_argument('--lstm-dim', default=-1, type=int,
