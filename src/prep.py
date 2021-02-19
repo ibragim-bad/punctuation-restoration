@@ -66,7 +66,7 @@ if __name__ == '__main__':
     tof = sys.argv[2]
     prp = Preprocessor()
     t = prp.prep_file(fn)
-    t.to_csv(, sep='\t',index=False, header=False)
+    t.to_csv(t, sep='\t',index=False, header=False)
 
 
 

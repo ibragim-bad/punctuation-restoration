@@ -12,7 +12,7 @@ import pandas as pd
 
 from argparser import parse_arguments
 from dataset import Dataset
-from model import Teacher, Student
+from model import DeepPunctuation, Student
 from config import *
 import augmentation
 import json
@@ -48,29 +48,34 @@ data_loader_params = {
 # logs
 os.makedirs(args.save_path, exist_ok=True)
 model_save_path = os.path.join(args.save_path, 'weights.pt')
+st_model_save_path = os.path.join(args.save_path, 'st_weights.pt')
 log_path = os.path.join(args.save_path, args.name + '_logs.txt')
 
 
 # Model
 device = torch.device('cuda' if (args.cuda and torch.cuda.is_available()) else 'cpu')
 
-deep_punctuation = Teacher(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
+deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
 deep_punctuation.to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(deep_punctuation.parameters(), lr=args.lr, weight_decay=args.decay)
+mse = nn.MSELoss()
+# optimizer = torch.optim.Adam(deep_punctuation.parameters(), lr=args.lr, weight_decay=args.decay)
 deep_punctuation.load_state_dict(torch.load(model_save_path, map_location=torch.device(device)))
 
 with open(args.student) as f:
     cfg = json.load(f)
 
 studet_deep = Student(cfg)
+studet_deep.to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(studet_deep.parameters(), lr=args.lr, weight_decay=args.decay)
 
 def validate(data_loader):
     """
     :return: validation accuracy, validation loss
     """
     num_iteration = 0
-    deep_punctuation.eval()
+    studet_deep.eval()
     correct = 0
     total = 0
     val_loss = 0
@@ -79,12 +84,12 @@ def validate(data_loader):
             x, y, att, y_mask = x.to(device), y.to(device), att.to(device), y_mask.to(device)
             y_mask = y_mask.view(-1)
             if args.use_crf:
-                y_predict = deep_punctuation(x, att, y)
-                loss = deep_punctuation.log_likelihood(x, att, y)
+                y_predict = studet_deep(x, att, y)
+                loss = studet_deep.log_likelihood(x, att, y)
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
-                y_predict = deep_punctuation(x, att)
+                y_predict = studet_deep(x, att)
                 y = y.view(-1)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 loss = criterion(y_predict, y)
@@ -102,7 +107,7 @@ def test(data_loader):
     :return: precision[numpy array], recall[numpy array], f1 score [numpy array], accuracy, confusion matrix
     """
     num_iteration = 0
-    deep_punctuation.eval()
+    studet_deep.eval()
     # +1 for overall result
     tp = np.zeros(1+len(punctuation_dict), dtype=np.int)
     fp = np.zeros(1+len(punctuation_dict), dtype=np.int)
@@ -115,11 +120,11 @@ def test(data_loader):
             x, y, att, y_mask = x.to(device), y.to(device), att.to(device), y_mask.to(device)
             y_mask = y_mask.view(-1)
             if args.use_crf:
-                y_predict = deep_punctuation(x, att, y)
+                y_predict = studet_deep(x, att, y)
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
-                y_predict = deep_punctuation(x, att)
+                y_predict = studet_deep(x, att)
                 y = y.view(-1)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 y_predict = torch.argmax(y_predict, dim=1).view(-1)
@@ -178,31 +183,42 @@ def train():
         train_iteration = 0
         correct = 0
         total = 0
-        deep_punctuation.train()
+        studet_deep.train()
         for x, y, att, y_mask in tqdm(train_loader, desc='train'):
             x, y, att, y_mask = x.to(device), y.to(device), att.to(device), y_mask.to(device)
             y_mask = y_mask.view(-1)
-            if args.use_crf:
-                loss = deep_punctuation.log_likelihood(x, att, y)
-                # y_predict = deep_punctuation(x, att, y)
-                # y_predict = y_predict.view(-1)
-                y = y.view(-1)
-            else:
-                y_predict = deep_punctuation(x, att)
-                y_predict = y_predict.view(-1, y_predict.shape[2])
-                y = y.view(-1)
-                loss = criterion(y_predict, y)
-                y_predict = torch.argmax(y_predict, dim=1).view(-1)
+            # if args.use_crf:
+            #     loss = deep_punctuation.log_likelihood(x, att, y)
+            #     # y_predict = deep_punctuation(x, att, y)
+            #     # y_predict = y_predict.view(-1)
+            #     y = y.view(-1)
+            # else:
+            deep_punctuation.eval()  # manually set DeepPunctuation model to eval mode
+            with torch.no_grad():
+                y_predict_t, t_hs_1, t_hs_2, t_hs_3 = deep_punctuation(x, att, distil=True)
 
-                correct += torch.sum(y_mask * (y_predict == y).long()).item()
+            y_predict, s_hs_1, s_hs_2, s_hs_3 = studet_deep(x, att)
+            y_predict = y_predict.view(-1, y_predict.shape[2])
+            y = y.view(-1)
+            loss = criterion(y_predict, y)
+
+            loss_1 = mse(s_hs_1, t_hs_1)
+            loss_2 = mse(s_hs_2, t_hs_2)
+            loss_3 = mse(s_hs_3, t_hs_3)
+
+            wloss =  (loss_1, loss_2, loss_3) / 3
+            total_loss = (wloss + loss) / 2
+            y_predict = torch.argmax(y_predict, dim=1).view(-1)
+
+            correct += torch.sum(y_mask * (y_predict == y).long()).item()
 
             optimizer.zero_grad()
             train_loss += loss.item()
             train_iteration += 1
-            loss.backward()
+            total_loss.backward()
 
             if args.gradient_clip > 0:
-                torch.nn.utils.clip_grad_norm_(deep_punctuation.parameters(), args.gradient_clip)
+                torch.nn.utils.clip_grad_norm_(studet_deep.parameters(), args.gradient_clip)
             optimizer.step()
 
             y_mask = y_mask.view(-1)
@@ -233,7 +249,7 @@ def train():
             print(log)
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
-                torch.save(deep_punctuation.state_dict(), model_save_path)
+                torch.save(studet_deep.state_dict(), st_model_save_path)
 
     # print('Best validation Acc:', best_val_acc)
     # deep_punctuation.load_state_dict(torch.load(model_save_path))
