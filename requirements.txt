@@ -1,2 +1,2 @@
-transformers==v2.11.0
+transformers
 pytorch-crf

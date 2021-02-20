@@ -24,7 +24,7 @@ class Student(nn.Module):
         self.linear = nn.Linear(in_features=hidden_size*2, out_features=len(punctuation_dict))
         self.proj_lin_1 = nn.Linear(in_features=hidden_size, out_features=768)
         self.proj_lin_2 = nn.Linear(in_features=hidden_size, out_features=768)
-        #self.proj_lin_3 = nn.Linear(in_features=hidden_size, out_features=768)
+        self.proj_lin_3 = nn.Linear(in_features=hidden_size, out_features=768)
 
 
     def forward(self, input_ids, attention_mask):
@@ -32,8 +32,9 @@ class Student(nn.Module):
             input_ids = input_ids.view(1, input_ids.shape[0])
             attention_mask = attention_mask.view(1, -1)  # add dummy batch for single sample
         # (B, N, E) -> (B, N, E)
-        x, _,hs = self.bert_layer(input_ids, attention_mask=attention_mask)
-
+        out = self.bert_layer(input_ids, attention_mask=attention_mask, output_hidden_states=True)
+        x = out.last_hidden_state
+        hs = out.hidden_states
         # (B, N, E) -> (N, B, E)
         x = torch.transpose(x, 0, 1)
         x, (_, _) = self.lstm(x)
@@ -43,8 +44,8 @@ class Student(nn.Module):
 
         pr1 = self.proj_lin_1(hs[0])
         pr2 = self.proj_lin_2(hs[1])
-        #pr3 = self.proj_lin_3(hs[2])
-        return x, pr1, pr2, 0
+        pr3 = self.proj_lin_3(hs[2])
+        return x, pr1, pr2, pr3
 
 class Teacher(nn.Module):
     def __init__(self, pretrained_model, freeze_bert=True, lstm_dim=-1):
@@ -69,8 +70,8 @@ class Teacher(nn.Module):
         # if len(x.shape) == 1:
         #     x = x.view(1, x.shape[0])  # add dummy batch for single sample
         # (B, N, E) -> (B, N, E)
-        x, _,hs = self.bert_layer(input_ids, attention_mask=attention_mask)
-
+        out = self.bert_layer(input_ids, attention_mask=attention_mask)
+        x = out.last_hidden_state
         # (B, N, E) -> (N, B, E)
         x = torch.transpose(x, 0, 1)
         x, (_, _) = self.lstm(x)
@@ -88,9 +89,10 @@ class DeepPunctuation(nn.Module):
     def __init__(self, pretrained_model, freeze_bert=False, lstm_dim=-1):
         super(DeepPunctuation, self).__init__()
         self.output_dim = len(punctuation_dict)
-        config = BertConfig.from_pretrained(pretrained_model, output_hidden_states=True)
+        config = BertConfig.from_pretrained(pretrained_model)
         bert_cl =  MODELS[pretrained_model][0]
-        self.bert_layer = bert_cl(config)
+        #self.bert_layer = bert_cl(config)
+        self.bert_layer = bert_cl.from_pretrained(pretrained_model)
         # Freeze bert layers
         if freeze_bert:
             for p in self.bert_layer.parameters():
@@ -109,8 +111,11 @@ class DeepPunctuation(nn.Module):
             attn_masks = attn_masks.view(1, -1)
             #print(x.shape, attn_masks.shape)  # add dummy batch for single sample
         # (B, N, E) -> (B, N, E)
-        x, _, hs = self.bert_layer(x, attention_mask=attn_masks)
-
+        out = self.bert_layer(x, attention_mask=attn_masks, output_hidden_states=distil)
+        x = out.last_hidden_state
+        hs = 0
+        if distil:
+          hs = out.hidden_states
         # (B, N, E) -> (N, B, E)
         x = torch.transpose(x, 0, 1)
         x, (_, _) = self.lstm(x)
