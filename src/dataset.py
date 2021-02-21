@@ -170,19 +170,26 @@ class Dataset(torch.utils.data.Dataset):
             if not isinstance(example, tuple):
                 projection.append(np.asarray(example))
             else:
-                projection.append(np.asarray(example[0])[0])
+                ex = example[0]
+                if self.pqrnn:
+                    ex = np.asarray(ex)[0]
+                
+                projection.append(ex)
                 labels.append(example[1])
                 attn_mask.append(example[2])
                 y_mask.append(example[3])
-        lengths = torch.from_numpy(np.asarray(list(map(len, examples)))).long()
-        projection_tensor = np.zeros(
-            (len(projection), max(map(len, projection)), len(projection[0][0]))
-        )
-        for i, doc in enumerate(projection):
-            projection_tensor[i, : len(doc), :] = doc
-
+        
+        if self.pqrnn:
+            projection_tensor = np.zeros(
+                (len(projection), max(map(len, projection)), len(projection[0][0]))
+            )
+            for i, doc in enumerate(projection):
+                projection_tensor[i, : len(doc), :] = doc
+            out_x = torch.from_numpy(projection_tensor).float()
+        else:
+            out_x = torch.from_numpy(np.asarray(projection)) 
         return (
-            torch.from_numpy(projection_tensor).float(),
+            out_x,
             torch.from_numpy(np.asarray(labels)),
             torch.from_numpy(np.asarray(attn_mask)),
             torch.from_numpy(np.asarray(y_mask)),
