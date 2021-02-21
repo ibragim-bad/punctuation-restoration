@@ -7,6 +7,9 @@ from model import DeepPunctuation, Student
 from config import *
 from datetime import datetime
 import json
+from yttm import YTTM
+from lstm_model import BiLSTM_CNN_CRF
+from pqrnn import PQRNN
 
 parser = argparse.ArgumentParser(description='Punctuation restoration inference on text file')
 parser.add_argument('--cuda', default=True, type=lambda x: (str(x).lower() == 'true'), help='use cuda if available')
@@ -22,10 +25,15 @@ parser.add_argument('--sequence-length', default=256, type=int,
                     help='sequence length to use when preparing dataset (default 256)')
 parser.add_argument('--out-file', default='data/test_en_out.txt', type=str, help='output file location')
 parser.add_argument('--student', default='bert-small.json', type=str, help='student config')
+parser.add_argument('--yttm', default='false', type=str, help='yttm model')
 args = parser.parse_args()
 
 # tokenizer
-tokenizer = MODELS[args.pretrained_model][1].from_pretrained(args.pretrained_model)
+if args.yttm == 'false':
+    tokenizer = MODELS[args.pretrained_model][1].from_pretrained(args.pretrained_model)
+else:
+    tokenizer = YTTM(args.yttm)
+# tokenizer = MODELS[args.pretrained_model][1].from_pretrained(args.pretrained_model)
 token_style = MODELS[args.pretrained_model][3]
 
 # logs
@@ -33,7 +41,16 @@ token_style = MODELS[args.pretrained_model][3]
 st_model_save_path = args.weight_path
 # Model
 device = torch.device('cuda' if (args.cuda and torch.cuda.is_available()) else 'cpu')
-deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=False, lstm_dim=args.lstm_dim)
+if args.yttm == 'false':
+    deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
+else:
+    if args.pqrnn:
+        deep_punctuation = PQRNN()
+    else:
+        deep_punctuation = BiLSTM_CNN_CRF(4, tokenizer.vocab_size, 512)
+
+
+
 # deep_punctuation.to(device)
 
 with open(args.student) as f:
@@ -52,6 +69,17 @@ def inference():
     print(len(text))
     print(len(text.split()))
 
+    bos = '<BOS>'
+    eos = '<EOS>'
+    pad = '<PAD>'
+    unk = '<UNK>'
+    if not pqrnn:
+            bos = TOKEN_IDX[token_style]['START_SEQ']
+            eos = TOKEN_IDX[token_style]['END_SEQ']
+            pad = TOKEN_IDX[token_style]['PAD']
+            unk = TOKEN_IDX[token_style]['UNK']
+
+
     words_original_case = text.split()
     words = text.lower().split()
     words = words
@@ -63,7 +91,7 @@ def inference():
     punctuation_map = {0: '', 1: ',', 2: '.', 3: '?'}
 
     while word_pos < len(words):
-        x = [TOKEN_IDX[token_style]['START_SEQ']]
+        x = [bos]
         y_mask = [0]
 
         a = datetime.now()
@@ -78,12 +106,12 @@ def inference():
                 x.append(tokenizer.convert_tokens_to_ids(tokens[-1]))
                 y_mask.append(1)
                 word_pos += 1
-        x.append(TOKEN_IDX[token_style]['END_SEQ'])
+        x.append(eos)
         y_mask.append(0)
         if len(x) < sequence_len:
-            x = x + [TOKEN_IDX[token_style]['PAD'] for _ in range(sequence_len - len(x))]
+            x = x + [pad for _ in range(sequence_len - len(x))]
             y_mask = y_mask + [0 for _ in range(sequence_len - len(y_mask))]
-        attn_mask = [1 if token != TOKEN_IDX[token_style]['PAD'] else 0 for token in x]
+        attn_mask = [1 if token != pad else 0 for token in x]
 
         x = torch.tensor(x)
         y_mask = torch.tensor(y_mask)
