@@ -2,9 +2,9 @@ import torch
 from config import *
 from augmentation import *
 import numpy as np
+from murhash import murmurhash
 
-
-def parse_data(file_path, tokenizer, sequence_len, token_style):
+def parse_data(file_path, tokenizer, sequence_len, token_style, pqrnn=False):
     """
 
     :param file_path: text file path that contains tokens and punctuations separated by tab in lines
@@ -15,12 +15,21 @@ def parse_data(file_path, tokenizer, sequence_len, token_style):
     punctuation_mask is used to ignore special indices like padding and intermediate sub-word token during evaluation
     """
     data_items = []
+    bos = '<BOS>'
+    eos = '<EOS>'
+    pad = '<PAD>'
+    unk = '<UNK>'
+    if not pqrnn:
+            bos = TOKEN_IDX[token_style]['START_SEQ']
+            eos = TOKEN_IDX[token_style]['END_SEQ']
+            pad = TOKEN_IDX[token_style]['PAD']
+            unk = TOKEN_IDX[token_style]['UNK']
     # with open(file_path, 'r', encoding='utf-8') as f:
     lines = [line for line in file_path.split('\n') if line.strip()]
     idx = 0
     # loop until end of the entire text
     while idx < len(lines):
-        x = [TOKEN_IDX[token_style]['START_SEQ']]
+        x = [bos]
         y = [0]
         y_mask = [1]  # which positions we need to consider while evaluating i.e., ignore pad or sub tokens
 
@@ -35,31 +44,39 @@ def parse_data(file_path, tokenizer, sequence_len, token_style):
                 break
             else:
                 for i in range(len(tokens) - 1):
-                    x.append(tokenizer.convert_tokens_to_ids(tokens[i]))
+                    if pqrnn:
+                        token_ids = tokens[i]
+                    else:
+                        token_ids = tokenizer.convert_tokens_to_ids(tokens[i])
+                    x.append(token_ids)
                     y.append(0)
                     y_mask.append(0)
                 if len(tokens) > 0:
-                    x.append(tokenizer.convert_tokens_to_ids(tokens[-1]))
+                    if pqrnn:
+                        token_ids = tokens[-1]
+                    else:
+                        token_ids = tokenizer.convert_tokens_to_ids(tokens[-1])
+                    x.append(token_ids)
                 else:
-                    x.append(TOKEN_IDX[token_style]['UNK'])
+                    x.append(unk)
                 y.append(punctuation_dict[punc])
                 y_mask.append(1)
                 idx += 1
-        x.append(TOKEN_IDX[token_style]['END_SEQ'])
+        x.append(eos)
         y.append(0)
         y_mask.append(1)
         if len(x) < sequence_len:
-            x = x + [TOKEN_IDX[token_style]['PAD'] for _ in range(sequence_len - len(x))]
+            x = x + [pad for _ in range(sequence_len - len(x))]
             y = y + [0 for _ in range(sequence_len - len(y))]
             y_mask = y_mask + [0 for _ in range(sequence_len - len(y_mask))]
-        attn_mask = [1 if token != TOKEN_IDX[token_style]['PAD'] else 0 for token in x]
+        attn_mask = [1 if token != pad else 0 for token in x]
         data_items.append([x, y, attn_mask, y_mask])
     return data_items
 
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, files, tokenizer, sequence_len, token_style, is_train=False, augment_rate=0.1,
-                 augment_type='substitute'):
+                 augment_type='substitute', pqrnn=False):
         """
 
         :param files: single file or list of text files containing tokens and punctuations separated by tab in lines
@@ -72,14 +89,15 @@ class Dataset(torch.utils.data.Dataset):
         if isinstance(files, list):
             self.data = []
             for file in files:
-                self.data += parse_data(file, tokenizer, sequence_len, token_style)
+                self.data += parse_data(file, tokenizer, sequence_len, token_style, pqrnn)
         else:
-            self.data = parse_data(files, tokenizer, sequence_len, token_style)
+            self.data = parse_data(files, tokenizer, sequence_len, token_style, pqrnn)
         self.sequence_len = sequence_len
         self.augment_rate = augment_rate
         self.token_style = token_style
         self.is_train = is_train
         self.augment_type = augment_type
+        self.pqrnn = pqrnn
 
     def __len__(self):
         return len(self.data)
@@ -117,11 +135,55 @@ class Dataset(torch.utils.data.Dataset):
         attn_mask = self.data[index][2]
         y_mask = self.data[index][3]
 
-        if self.is_train and self.augment_rate > 0:
+        if not self.pqrnn and self.is_train and self.augment_rate > 0:
             x, y, attn_mask, y_mask = self._augment(x, y, y_mask)
-        x = torch.tensor(x)
-        y = torch.tensor(y)
-        attn_mask = torch.tensor(attn_mask)
-        y_mask = torch.tensor(y_mask)
+        if self.pqrnn:
+            x_seq = []
+            x_seq.append([murmurhash(t) for t in x])
+            x = x_seq
+        # x = torch.tensor(x)
+        # y = torch.tensor(y)
+        # attn_mask = torch.tensor(attn_mask)
+        # y_mask = torch.tensor(y_mask)
 
         return x, y, attn_mask, y_mask
+
+
+    def collate_fn(self, examples):
+        """Batching examples.
+        Parameters
+        ----------
+        examples : List[Any]
+            List of examples
+        Returns
+        -------
+        Tuple[torch.Tensor, ...]
+            Tuple of hash tensor, length tensor, and label tensor
+        """
+
+        projection = []
+        labels = []
+        attn_mask = []
+        y_mask = []
+
+        for example in examples:
+            if not isinstance(example, tuple):
+                projection.append(np.asarray(example))
+            else:
+                projection.append(np.asarray(example[0])[0])
+                labels.append(example[1])
+                attn_mask.append(example[2])
+                y_mask.append(example[3])
+        lengths = torch.from_numpy(np.asarray(list(map(len, examples)))).long()
+        projection_tensor = np.zeros(
+            (len(projection), max(map(len, projection)), len(projection[0][0]))
+        )
+        for i, doc in enumerate(projection):
+            projection_tensor[i, : len(doc), :] = doc
+
+        return (
+            torch.from_numpy(projection_tensor).float(),
+            torch.from_numpy(np.asarray(labels)),
+            torch.from_numpy(np.asarray(attn_mask)),
+            torch.from_numpy(np.asarray(y_mask)),
+        )

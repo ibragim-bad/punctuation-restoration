@@ -17,6 +17,7 @@ from config import *
 import augmentation
 from yttm import YTTM
 from lstm_model import BiLSTM_CNN_CRF
+from pqrnn import PQRNN
 
 torch.multiprocessing.set_sharing_strategy('file_system') 
 
@@ -60,10 +61,6 @@ data_loader_params = {
     'shuffle': True,
     'num_workers': 1
 }
-# train_loader = torch.utils.data.DataLoader(train_set, **data_loader_params)
-# val_loader = torch.utils.data.DataLoader(val_set, **data_loader_params)
-# test_loaders = [torch.utils.data.DataLoader(x, **data_loader_params) for x in test_set]
-
 # logs
 os.makedirs(args.save_path, exist_ok=True)
 model_save_path = os.path.join(args.save_path, 'weights.pt')
@@ -76,7 +73,10 @@ device = torch.device('cuda' if (args.cuda and torch.cuda.is_available()) else '
 if args.yttm == 'false':
     deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
 else:
-    deep_punctuation = BiLSTM_CNN_CRF(4, tokenizer.vocab_size, 512)
+    if args.pqrnn:
+        deep_punctuation = PQRNN()
+    else:
+        deep_punctuation = BiLSTM_CNN_CRF(4, tokenizer.vocab_size, 512)
 
 
 
@@ -192,9 +192,9 @@ def train():
             df = prepr.prep_file(fn)
         str_df = df.to_csv(sep='\t', header=None, index=False)
         train_set = Dataset(str_df, tokenizer=tokenizer, sequence_len=sequence_len,
-                        token_style=token_style, is_train=True, augment_rate=ar, augment_type=aug_type)
+                        token_style=token_style, is_train=True, augment_rate=ar, augment_type=aug_type, pqrnn=args.pqrnn)
         
-        train_loader = torch.utils.data.DataLoader(train_set, **data_loader_params)
+        train_loader = torch.utils.data.DataLoader(train_set, collate_fn=train_set.collate_fn, **data_loader_params)
 
         train_loss = 0.0
         train_iteration = 0
@@ -245,9 +245,9 @@ def train():
             str_df =df.to_csv(sep='\t', header=None, index=False)
             
             val_set = Dataset(str_df, tokenizer=tokenizer, sequence_len=sequence_len,
-                            token_style=token_style, is_train=True, augment_rate=ar, augment_type=aug_type)
+                            token_style=token_style, is_train=True, augment_rate=ar, augment_type=aug_type, pqrnn=args.pqrnn)
             
-            val_loader = torch.utils.data.DataLoader(val_set, **data_loader_params)
+            val_loader = torch.utils.data.DataLoader(val_set, collate_fn=val_set.collate_fn, **data_loader_params)
             val_acc, val_loss = validate(val_loader)
             log = 'epoch: {}, Val loss: {}, Val accuracy: {}'.format(epoch, val_loss, val_acc)
             with open(log_path, 'a') as f:
