@@ -26,6 +26,7 @@ parser.add_argument('--sequence-length', default=256, type=int,
 parser.add_argument('--out-file', default='data/test_en_out.txt', type=str, help='output file location')
 parser.add_argument('--student', default='bert-small.json', type=str, help='student config')
 parser.add_argument('--yttm', default='false', type=str, help='yttm model')
+parser.add_argument('--pqrnn', default=False, type=bool, help='pqrnn')
 args = parser.parse_args()
 
 # tokenizer
@@ -42,7 +43,7 @@ st_model_save_path = args.weight_path
 # Model
 device = torch.device('cuda' if (args.cuda and torch.cuda.is_available()) else 'cpu')
 if args.yttm == 'false':
-    deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
+    deep_punctuation = DeepPunctuation(args.pretrained_model, lstm_dim=args.lstm_dim)
 else:
     if args.pqrnn:
         deep_punctuation = PQRNN()
@@ -73,7 +74,7 @@ def inference():
     eos = '<EOS>'
     pad = '<PAD>'
     unk = '<UNK>'
-    if not pqrnn:
+    if not args.pqrnn:
             bos = TOKEN_IDX[token_style]['START_SEQ']
             eos = TOKEN_IDX[token_style]['END_SEQ']
             pad = TOKEN_IDX[token_style]['PAD']
@@ -129,7 +130,7 @@ def inference():
                 y_predict = y_predict.view(-1)
             else:
                 c = datetime.now()
-                y_predict, _= deep_punctuation(x, attn_mask)
+                y_predict = deep_punctuation(x, attn_mask)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 y_predict = torch.argmax(y_predict, dim=1).view(-1)
                 d = datetime.now()

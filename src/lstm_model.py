@@ -91,7 +91,12 @@ class BiLSTM_CNN_CRF(nn.Module):
         :param label_ids: (batch_size, max_seq_len)
         :return: (batch_size, max_seq_len, hidden_dim)
         """
+        if len(word_ids.shape) == 1:
+            word_ids = word_ids.view(1, word_ids.shape[0])
+            mask = mask.view(1, -1)
+
         w_emb = self.word_emb(word_ids)
+        
         #c_emb = self.char_cnn(char_ids)
 
         w_c_emb = w_emb#torch.cat([w_emb, c_emb], dim=-1)
