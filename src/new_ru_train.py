@@ -237,7 +237,7 @@ def train():
             f.write(log + '\n')
         print(log)
 
-        if epoch % 25 == 0:
+        if epoch % 3 == 0:
             #fn = random.choice(fs)
             df = pd.read_csv('data/test_ru.tsv', sep='\t', header=None)
 

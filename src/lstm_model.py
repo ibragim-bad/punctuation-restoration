@@ -80,6 +80,7 @@ class BiLSTM_CNN_CRF(nn.Module):
                                batch_first=True)
 
         self.output_linear = nn.Linear(hidden_dim, nlabels)
+        self.softmax = nn.Softmax(dim=2)
 
         #self.crf = CRF(num_tags=nlabels, batch_first=True)
 
@@ -99,6 +100,7 @@ class BiLSTM_CNN_CRF(nn.Module):
         lstm_output, _ = self.bi_lstm(w_c_emb, None)
 
         output = self.output_linear(lstm_output)
+        output = self.softmax(output)
 
         # loss = 0
         # if label_ids is not None:
