@@ -119,7 +119,6 @@ class Dataset(torch.utils.data.Dataset):
 
         if self.is_train and self.augment_rate > 0:
             x, y, attn_mask, y_mask = self._augment(x, y, y_mask)
-
         x = torch.tensor(x)
         y = torch.tensor(y)
         attn_mask = torch.tensor(attn_mask)

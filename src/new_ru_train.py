@@ -15,6 +15,8 @@ from dataset import Dataset
 from model import DeepPunctuation, DeepPunctuationCRF
 from config import *
 import augmentation
+from yttm import YTTM
+from lstm_model import BiLSTM_CNN_CRF
 
 torch.multiprocessing.set_sharing_strategy('file_system') 
 
@@ -27,7 +29,11 @@ torch.backends.cudnn.benchmark = False
 np.random.seed(args.seed)
 
 # tokenizer
-tokenizer = MODELS[args.pretrained_model][1].from_pretrained(args.pretrained_model)
+if args.yttm == 'false':
+    tokenizer = MODELS[args.pretrained_model][1].from_pretrained(args.pretrained_model)
+else:
+    tokenizer = YTTM(args.yttm)
+
 augmentation.tokenizer = tokenizer
 augmentation.sub_style = args.sub_style
 augmentation.alpha_sub = args.alpha_sub
@@ -66,10 +72,13 @@ log_path = os.path.join(args.save_path, args.name + '_logs.txt')
 
 # Model
 device = torch.device('cuda' if (args.cuda and torch.cuda.is_available()) else 'cpu')
-if args.use_crf:
-    deep_punctuation = DeepPunctuationCRF(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
-else:
+
+if args.yttm == 'false':
     deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
+else:
+    deep_punctuation = BiLSTM_CNN_CRF(4, tokenizer.vocab_size, 512)
+
+
 
 deep_punctuation.to(device)
 criterion = nn.CrossEntropyLoss()
@@ -97,7 +106,7 @@ def validate(data_loader):
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
-                y_predict, hs = deep_punctuation(x, att)
+                y_predict = deep_punctuation(x, att)
                 y = y.view(-1)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 loss = criterion(y_predict, y)
@@ -132,7 +141,7 @@ def test(data_loader):
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
-                y_predict, hs = deep_punctuation(x, att)
+                y_predict = deep_punctuation(x, att)
                 y = y.view(-1)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 y_predict = torch.argmax(y_predict, dim=1).view(-1)
@@ -201,7 +210,7 @@ def train():
                 # y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
-                y_predict, hs = deep_punctuation(x, att)
+                y_predict = deep_punctuation(x, att)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
                 y = y.view(-1)
                 loss = criterion(y_predict, y)
@@ -249,19 +258,19 @@ def train():
                 torch.save(deep_punctuation.state_dict(), model_save_path)
 
     print('Best validation Acc:', best_val_acc)
-    deep_punctuation.load_state_dict(torch.load(model_save_path))
-    for loader in test_loaders:
-        precision, recall, f1, accuracy, cm = test(loader)
-        log = 'Precision: ' + str(precision) + '\n' + 'Recall: ' + str(recall) + '\n' + 'F1 score: ' + str(f1) + \
-              '\n' + 'Accuracy:' + str(accuracy) + '\n' + 'Confusion Matrix' + str(cm) + '\n'
-        print(log)
-        with open(log_path, 'a') as f:
-            f.write(log)
-        log_text = ''
-        for i in range(1, 5):
-            log_text += str(precision[i] * 100) + ' ' + str(recall[i] * 100) + ' ' + str(f1[i] * 100) + ' '
-        with open(log_path, 'a') as f:
-            f.write(log_text[:-1] + '\n\n')
+    # deep_punctuation.load_state_dict(torch.load(model_save_path))
+    # for loader in test_loaders:
+    #     precision, recall, f1, accuracy, cm = test(loader)
+    #     log = 'Precision: ' + str(precision) + '\n' + 'Recall: ' + str(recall) + '\n' + 'F1 score: ' + str(f1) + \
+    #           '\n' + 'Accuracy:' + str(accuracy) + '\n' + 'Confusion Matrix' + str(cm) + '\n'
+    #     print(log)
+    #     with open(log_path, 'a') as f:
+    #         f.write(log)
+    #     log_text = ''
+    #     for i in range(1, 5):
+    #         log_text += str(precision[i] * 100) + ' ' + str(recall[i] * 100) + ' ' + str(f1[i] * 100) + ' '
+    #     with open(log_path, 'a') as f:
+    #         f.write(log_text[:-1] + '\n\n')
 
 
 if __name__ == '__main__':

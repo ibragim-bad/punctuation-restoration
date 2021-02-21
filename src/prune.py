@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     device = torch.device('cpu')
     deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=False, lstm_dim=-1)
-    model_save_path = os.path.join(args.save_path, 'weights.pt')
+    model_save_path = os.path.join(args.save_path, 'dp_bert_wts.pt')
     new_model_save_path = os.path.join(args.save_path, 'pruned_weights.pt')
 
     deep_punctuation.to(device)
@@ -43,12 +43,14 @@ if __name__ == '__main__':
 
     # seq_bert = torch.nn.Sequential(*(list(bert_module.encoder.children()))) 
     # print(len(bert_module))
-    ls = [0,6,12]
+    ls = [0,6,13]
     new_model = deleteEncodingLayers(deep_punctuation, ls)
+    print(new_model)
     # nm = list(new_model.children()) + seq[:1]
     # new_dp = torch.nn.Sequential(*nm) 
     print(new_model)
     torch.save(new_model.state_dict(), new_model_save_path)
+    torch.save(model, PATH)
 
 
 criterion = nn.CrossEntropyLoss()

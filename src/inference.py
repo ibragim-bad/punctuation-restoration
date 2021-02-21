@@ -60,7 +60,7 @@ def inference():
     sequence_len = args.sequence_length
     result = ""
     decode_idx = 0
-    punctuation_map = {0: '', 1: '.', 2: ',', 3: '?'}
+    punctuation_map = {0: '', 1: ',', 2: '.', 3: '?'}
 
     while word_pos < len(words):
         x = [TOKEN_IDX[token_style]['START_SEQ']]
