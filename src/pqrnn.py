@@ -35,7 +35,7 @@ class PQRNN(nn.Module):
         self,
         b: int = 256,
         d: int = 64,
-        num_layers: int = 1,
+        num_layers: int = 2,
         fc_sizes: List[int] = None,
         output_size: int = 4,
         lr: float = 0.025,
