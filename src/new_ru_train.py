@@ -236,7 +236,6 @@ def train():
             y_mask = y_mask.view(-1)
 
             total += torch.sum(y_mask).item()
-            break
         train_loss /= train_iteration
         log = 'epoch: {}, Train loss: {}, Train accuracy: {}'.format(epoch, train_loss, correct / total)
         with open(log_path, 'a') as f:

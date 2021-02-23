@@ -94,7 +94,7 @@ class PQRNN(nn.Module):
         )
         return mask
 
-    def forward(self, projection, attention_mask):
+    def forward(self, projection, attention_mask, y=None):
         features = self.tanh(projection)
         features = features.transpose(0, 1)
         if self.hparams["rnn_type"] in {"LSTM", "GRU", "QRNN"}:

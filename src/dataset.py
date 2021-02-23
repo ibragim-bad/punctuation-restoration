@@ -3,6 +3,13 @@ from config import *
 from augmentation import *
 import numpy as np
 from murhash import murmurhash
+import regex
+
+REGEX0 = regex.compile(r"([\p{S}\p{P}]+)")
+REGEX1 = regex.compile(r" +")
+
+def sub_tok(text):
+    return [text]
 
 def parse_data(file_path, tokenizer, sequence_len, token_style, pqrnn=False):
     """
@@ -37,6 +44,8 @@ def parse_data(file_path, tokenizer, sequence_len, token_style, pqrnn=False):
             # -1 because we will have a special end of sequence token at the end
         while len(x) < sequence_len - 1 and idx < len(lines):
             word, punc = lines[idx].split('\t')
+            if pqrnn:
+                tokens = sub_tok(word)
             tokens = tokenizer.tokenize(word)
             # if taking these tokens exceeds sequence length we finish current sequence with padding
             # then start next sequence from this token
