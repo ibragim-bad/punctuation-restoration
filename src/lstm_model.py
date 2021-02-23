@@ -83,7 +83,7 @@ class BiLSTM_CNN_CRF(nn.Module):
 
         self.crf = CRF(num_tags=nlabels, batch_first=True)
 
-    def log_likelihood(self, output, att, y):
+    def log_likelihood(self, word_ids, mask, y):
         # if len(x.shape) == 1:
         #     x = x.view(1, x.shape[0])
         #     att = att.view(1, -1)
@@ -97,10 +97,24 @@ class BiLSTM_CNN_CRF(nn.Module):
         # lstm_output, _ = self.bi_lstm(w_c_emb, None)
 
         # output = self.output_linear(lstm_output)
+        if len(word_ids.shape) == 1:
+            word_ids = word_ids.view(1, word_ids.shape[0])
+            mask = mask.view(1, -1)
+
+        w_emb = self.word_emb(word_ids)
+        
+        #c_emb = self.char_cnn(char_ids)
+
+        w_c_emb = w_emb#torch.cat([w_emb, c_emb], dim=-1)
+
+        lstm_output, _ = self.bi_lstm(w_c_emb, None)
+
+        output = self.output_linear(lstm_output)
+
 
         loss = 0
         if y is not None:
-            loss = self.crf(output, y, att.byte(), reduction='mean')
+            loss = self.crf(output, y, mask.byte(), reduction='mean')
             loss = loss * -1  # negative log likelihood
 
         return loss
@@ -126,10 +140,16 @@ class BiLSTM_CNN_CRF(nn.Module):
         lstm_output, _ = self.bi_lstm(w_c_emb, None)
 
         output = self.output_linear(lstm_output)
+        mask = mask.byte()
+        dec_out = self.crf.decode(output, mask=mask)
+        y_pred = torch.zeros(label_ids.shape).long().to(word_ids.device)
+
+        for i in range(len(dec_out)):
+            y_pred[i, :len(dec_out[i])] = torch.tensor(dec_out[i]).to(word_ids.device)
 
         # loss = 0
         # if label_ids is not None:
         #     loss = self.crf(output, label_ids, mask.byte(), reduction='mean')
         #     loss = loss * -1  # negative log likelihood
 
-        return output
+        return y_pred

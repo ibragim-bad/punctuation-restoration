@@ -141,6 +141,8 @@ class DeepPunctuationCRF(nn.Module):
         x = self.bert_lstm(x, attn_masks)
         attn_masks = attn_masks.byte()
         dec_out = self.crf.decode(x, mask=attn_masks)
+        print(len(dec_out))
+        print(len(dec_out[0]))
         y_pred = torch.zeros(y.shape).long().to(y.device)
         for i in range(len(dec_out)):
             y_pred[i, :len(dec_out[i])] = torch.tensor(dec_out[i]).to(y.device)

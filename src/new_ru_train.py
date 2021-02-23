@@ -108,8 +108,7 @@ def validate(data_loader):
             y_mask = y_mask.view(-1)
             if args.use_crf:
                 y_predict = deep_punctuation(x, att, y)
-                loss = deep_punctuation.log_likelihood(y_predict, att, y)
-                y_predict = torch.argmax(y_predict, dim=2)
+                loss = deep_punctuation.log_likelihood(x, att, y)
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
@@ -213,7 +212,7 @@ def train():
             y_mask = y_mask.view(-1)
             if args.use_crf:
                 y_predict = deep_punctuation(x, att, y)
-                loss = deep_punctuation.log_likelihood(y_predict, att, y)
+                loss = deep_punctuation.log_likelihood(x, att, y)
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
