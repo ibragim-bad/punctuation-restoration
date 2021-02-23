@@ -100,7 +100,7 @@ class BiLSTM_CNN_CRF(nn.Module):
 
         loss = 0
         if y is not None:
-            loss = self.crf(output, y, att.byte(), reduction='token_mean')
+            loss = self.crf(output, y, att.byte(), reduction='mean')
             loss = loss * -1  # negative log likelihood
 
         return loss
@@ -127,9 +127,9 @@ class BiLSTM_CNN_CRF(nn.Module):
 
         output = self.output_linear(lstm_output)
 
-        loss = 0
-        if label_ids is not None:
-            loss = self.crf(output, label_ids, mask.byte(), reduction='mean')
-            loss = loss * -1  # negative log likelihood
+        # loss = 0
+        # if label_ids is not None:
+        #     loss = self.crf(output, label_ids, mask.byte(), reduction='mean')
+        #     loss = loss * -1  # negative log likelihood
 
         return output
