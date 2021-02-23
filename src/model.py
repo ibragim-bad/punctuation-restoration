@@ -51,8 +51,7 @@ class Teacher(nn.Module):
     def __init__(self, pretrained_model, freeze_bert=True, lstm_dim=-1):
         super(Teacher, self).__init__()
         self.output_dim = len(punctuation_dict)
-        self.config = BertConfig.from_pretrained(pretrained_model,
-                                    output_hidden_states=True)
+        self.config = BertConfig.from_pretrained(pretrained_model,)
         self.bert_layer = BertModel(self.config)
         # Freeze bert layers
         # if freeze_bert:
@@ -83,7 +82,7 @@ class Teacher(nn.Module):
 
 
 
-from transformers import *
+from transformers import BertConfig
 
 class DeepPunctuation(nn.Module):
     def __init__(self, pretrained_model, freeze_bert=False, lstm_dim=-1):
@@ -111,7 +110,7 @@ class DeepPunctuation(nn.Module):
             attn_masks = attn_masks.view(1, -1)
             #print(x.shape, attn_masks.shape)  # add dummy batch for single sample
         # (B, N, E) -> (B, N, E)
-        out = self.bert_layer(x, attention_mask=attn_masks, output_hidden_states=distil)
+        out = self.bert_layer(x, attention_mask=attn_masks)
         x = out.last_hidden_state
         hs = 0
         if distil:
@@ -122,7 +121,7 @@ class DeepPunctuation(nn.Module):
         # (N, B, E) -> (B, N, E)
         x = torch.transpose(x, 0, 1)
         x = self.linear(x)
-        return x, hs
+        return x
 
 
 class DeepPunctuationCRF(nn.Module):

@@ -81,9 +81,31 @@ class BiLSTM_CNN_CRF(nn.Module):
 
         self.output_linear = nn.Linear(hidden_dim, nlabels)
 
-        #self.crf = CRF(num_tags=nlabels, batch_first=True)
+        self.crf = CRF(num_tags=nlabels, batch_first=True)
 
-    def forward(self, word_ids, mask):
+    def log_likelihood(self, output, att, y):
+        # if len(x.shape) == 1:
+        #     x = x.view(1, x.shape[0])
+        #     att = att.view(1, -1)
+
+        # w_emb = self.word_emb(x)
+        
+        # #c_emb = self.char_cnn(char_ids)
+
+        # w_c_emb = w_emb#torch.cat([w_emb, c_emb], dim=-1)
+
+        # lstm_output, _ = self.bi_lstm(w_c_emb, None)
+
+        # output = self.output_linear(lstm_output)
+
+        loss = 0
+        if y is not None:
+            loss = self.crf(output, y, att.byte(), reduction='token_mean')
+            loss = loss * -1  # negative log likelihood
+
+        return loss
+
+    def forward(self, word_ids, mask, label_ids):
         """
         :param word_ids: (batch_size, max_seq_len)
         :param char_ids: (batch_size, max_seq_len, max_word_len)
@@ -105,9 +127,9 @@ class BiLSTM_CNN_CRF(nn.Module):
 
         output = self.output_linear(lstm_output)
 
-        # loss = 0
-        # if label_ids is not None:
-        #     loss = self.crf(output, label_ids, mask.byte(), reduction='mean')
-        #     loss = loss * -1  # negative log likelihood
+        loss = 0
+        if label_ids is not None:
+            loss = self.crf(output, label_ids, mask.byte(), reduction='mean')
+            loss = loss * -1  # negative log likelihood
 
         return output

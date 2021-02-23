@@ -18,6 +18,7 @@ import augmentation
 from yttm import YTTM
 from lstm_model import BiLSTM_CNN_CRF
 from pqrnn import PQRNN
+from transformers import BertForSequenceClassification, BertConfig
 
 torch.multiprocessing.set_sharing_strategy('file_system') 
 
@@ -71,7 +72,12 @@ log_path = os.path.join(args.save_path, args.name + '_logs.txt')
 device = torch.device('cuda' if (args.cuda and torch.cuda.is_available()) else 'cpu')
 
 if args.yttm == 'false':
-    deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
+    if args.use_crf:
+        deep_punctuation = DeepPunctuationCRF(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
+        #deep_punctuation = BertForTokenClassification.from_pretrained(args.pretrained_model, num_labels = 4)
+    else:
+        deep_punctuation = DeepPunctuation(args.pretrained_model, freeze_bert=args.freeze_bert, lstm_dim=args.lstm_dim)
+        print('hey')
 else:
     if args.pqrnn:
         deep_punctuation = PQRNN()
@@ -102,7 +108,7 @@ def validate(data_loader):
             y_mask = y_mask.view(-1)
             if args.use_crf:
                 y_predict = deep_punctuation(x, att, y)
-                loss = deep_punctuation.log_likelihood(x, att, y)
+                loss = deep_punctuation.log_likelihood(y_predict, att, y)
                 y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
@@ -205,9 +211,9 @@ def train():
             x, y, att, y_mask = x.to(device), y.to(device), att.to(device), y_mask.to(device)
             y_mask = y_mask.view(-1)
             if args.use_crf:
-                loss = deep_punctuation.log_likelihood(x, att, y)
-                # y_predict = deep_punctuation(x, att, y)
-                # y_predict = y_predict.view(-1)
+                y_predict = deep_punctuation(x, att, y)
+                loss = deep_punctuation.log_likelihood(y_predict, att, y)
+                y_predict = y_predict.view(-1)
                 y = y.view(-1)
             else:
                 y_predict = deep_punctuation(x, att)

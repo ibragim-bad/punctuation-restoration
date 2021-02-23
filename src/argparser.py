@@ -32,6 +32,7 @@ def parse_arguments():
     parser.add_argument('--save-path', default='out/', type=str, help='model and log save directory')
     parser.add_argument('--yttm', default='false', type=str, help='yttm model')
     parser.add_argument('--pqrnn', default=False, type=bool, help='pqrnn')
+    parser.add_argument('--hg', default=False, type=bool, help='standert huggingface model')
 
     args = parser.parse_args()
     return args
