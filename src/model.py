@@ -104,8 +104,8 @@ class DeepPunctuation(nn.Module):
         self.lstm = nn.LSTM(input_size=bert_dim, hidden_size=hidden_size, num_layers=1, bidirectional=True)
         self.relu = nn.ReLU()
         self.linear = nn.Linear(in_features=hidden_size*2, out_features=hidden_size)
-        self.drop1 = nn.Dropout(0.3)
-        self.drop2 = nn.Dropout(0.3)
+        self.drop1 = nn.Dropout(0.4)
+        self.drop2 = nn.Dropout(0.4)
         self.linear2 = nn.Linear(in_features=hidden_size, out_features=len(punctuation_dict))
 
     def forward(self, x, attn_masks, distil=False):
