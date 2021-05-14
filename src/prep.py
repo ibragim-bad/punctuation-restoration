@@ -9,7 +9,7 @@ class Preprocessor(object):
     def __init__(self, cap=True):
         self.pattern = re.compile('[^a-zA-ZА-Яа-я0-9,?.-:;★\s]+')
         self.punc_set = {k:v for v,k in enumerate(string.punctuation)}
-        self.pnc = {'0':'O',',':'PERIOD','.':'COMMA', '?':'QUESTION', ':':'COLON', ';':'SEMICOLON', '-':'DASH',
+        self.pnc = {'0':'O','.':'PERIOD',',':'COMMA', '?':'QUESTION', ':':'COLON', ';':'SEMICOLON', '-':'DASH',
                    '★':'SLASH'}
         self.cap = True
 
