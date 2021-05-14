@@ -6,16 +6,18 @@ FN = '/Users/ibragim/Documents/ytsubs/ru-ted.txt'
 
 class Preprocessor(object):
 
-    def __init__(self):
+    def __init__(self, cap=True):
         self.pattern = re.compile('[^a-zA-ZА-Яа-я0-9,?.\s]+')
         self.punc_set = {k:v for v,k in enumerate(string.punctuation)}
-        self.pnc = {',':'PERIOD','.':'COMMA', '?':'QUESTION'}
+        self.pnc = {',':'PERIOD','.':'COMMA', '?':'QUESTION', ':':'COLON', ';':'SEMICOLON'}
+        self.cap = True
 
     def clean_extra(self, s):
+        s = s.replace('ё', 'е')
         s = s.replace('!', '.')
         s = s.replace('...', '.')
-        s = s.replace(':', ',')
-        s = s.replace(';', ',')
+#         s = s.replace(':', ',')
+#         s = s.replace(';', ',')
         s = self.pattern.sub('', s)
         l = s.split()
         for i,w in enumerate(l):
@@ -25,18 +27,21 @@ class Preprocessor(object):
         return " ".join(l)
     
 
-    def get_targets(self, s):
+    def is_capit(self, s):
         ids = []
         for w in s:
-            p = self.pnc.get(w[-1], 'O') 
+            p = 1 if w[0].isupper() else 0 
             ids.append(p)
         return ids
-
         
     def get_targets(self, s):
         ids = []
         for w in s:
-            p = self.pnc.get(w[-1], 'O') 
+            c = ''
+            p = self.pnc.get(w[-1], 'O')
+            if self.cap:
+                c = '1' if w[0].isupper() else '0' 
+            p = ''.join([c,p])
             ids.append(p)
         return ids
 
@@ -48,10 +53,8 @@ class Preprocessor(object):
                 s = s.replace(i, '')
             al.append(s)
         return al
-
-    def prep_file(self,fn):
-        with open(fn) as f: 
-            txt = f.read()
+    
+    def prep_txt(self,txt):
         txt = self.clean_extra(txt)
         tl = txt.split()
         y = self.get_targets(tl)
@@ -59,6 +62,11 @@ class Preprocessor(object):
         df = pd.DataFrame({'text': x, 'label': y})
         return df
 
+    def prep_file(self,fn):
+        with open(fn) as f: 
+            txt = f.read()
+        df = self.prep_txt(txt)
+        return df
 
 if __name__ == '__main__':
     import sys

@@ -242,9 +242,17 @@ def train():
             f.write(log + '\n')
         print(log)
 
-        if epoch % 3 == 0:
-            #fn = random.choice(fs)
-            df = pd.read_csv('data/test_ru.tsv', sep='\t', header=None)
+        if epoch % 2 == 0:
+            fn = random.choice(fs)
+            try:
+                df = prepr.prep_file(fn).head(10000)
+            except:
+                print(f'error {fn}')
+            
+            # fn = random.choice(fs)
+            # df = prepr.prep_file(fn)
+            # fn = random.choice(fs)
+            # df = pd.read_csv(fs, sep='\t', header=None)
 
             #df = prepr.prep_file(fn)
             str_df =df.to_csv(sep='\t', header=None, index=False)

@@ -102,7 +102,11 @@ class DeepPunctuation(nn.Module):
         else:
             hidden_size = lstm_dim
         self.lstm = nn.LSTM(input_size=bert_dim, hidden_size=hidden_size, num_layers=1, bidirectional=True)
-        self.linear = nn.Linear(in_features=hidden_size*2, out_features=len(punctuation_dict))
+        self.relu = nn.ReLU()
+        self.linear = nn.Linear(in_features=hidden_size*2, out_features=hidden_size)
+        self.drop1 = nn.Dropout(0.3)
+        self.drop2 = nn.Dropout(0.3)
+        self.linear2 = nn.Linear(in_features=hidden_size, out_features=len(punctuation_dict))
 
     def forward(self, x, attn_masks, distil=False):
         if len(x.shape) == 1:
@@ -120,7 +124,11 @@ class DeepPunctuation(nn.Module):
         x, (_, _) = self.lstm(x)
         # (N, B, E) -> (B, N, E)
         x = torch.transpose(x, 0, 1)
+        x = self.drop1(x)
         x = self.linear(x)
+        x = self.relu(x)
+        x = self.drop2(x)
+        x = self.linear2(x)
         return x
 
 
