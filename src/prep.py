@@ -7,17 +7,17 @@ FN = '/Users/ibragim/Documents/ytsubs/ru-ted.txt'
 class Preprocessor(object):
 
     def __init__(self, cap=True):
-        self.pattern = re.compile('[^a-zA-ZА-Яа-я0-9,?.\s]+')
+        self.pattern = re.compile('[^a-zA-ZА-Яа-я0-9,?.-:;★\s]+')
         self.punc_set = {k:v for v,k in enumerate(string.punctuation)}
-        self.pnc = {'.':'PERIOD',',':'COMMA', '?':'QUESTION', ':':'COLON', ';':'SEMICOLON', '-':'DASH'}
+        self.pnc = {'0':'O',',':'PERIOD','.':'COMMA', '?':'QUESTION', ':':'COLON', ';':'SEMICOLON', '-':'DASH',
+                   '★':'SLASH'}
         self.cap = True
 
     def clean_extra(self, s):
         s = s.replace('ё', 'е')
+        s = s.replace('\n', '★ ')
         s = s.replace('!', '.')
         s = s.replace('...', '.')
-#         s = s.replace(':', ',')
-#         s = s.replace(';', ',')
         s = self.pattern.sub('', s)
         l = s.split()
         for i,w in enumerate(l):
@@ -26,6 +26,13 @@ class Preprocessor(object):
                 l[i-1] = l[i-1] + p
         return " ".join(l)
     
+
+    def get_targets(self, s):
+        ids = []
+        for w in s:
+            p = self.pnc.get(w[-1], 'O') 
+            ids.append(p)
+        return ids
 
     def is_capit(self, s):
         ids = []

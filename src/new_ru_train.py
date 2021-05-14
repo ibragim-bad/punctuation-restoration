@@ -236,7 +236,7 @@ def train():
         if epoch % 2 == 0:
             fn = random.choice(fs)
             try:
-                df = prepr.prep_file(fn).head(10000)
+                df = prepr.prep_file(fn).head(20000)
             except:
                 print(f'error {fn}')
             
@@ -257,7 +257,7 @@ def train():
             with open(log_path, 'a') as f:
                 f.write(log + '\n')
             print(log)
-            if val_acc > best_val_acc:
+            if 1:#val_acc > best_val_acc:
                 best_val_acc = val_acc
                 torch.save(deep_punctuation.state_dict(), model_save_path)
 
