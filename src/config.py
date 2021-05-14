@@ -30,16 +30,18 @@ TOKEN_IDX = {
 
 # 'O' -> No punctuation
 # punctuation_dict = {'O': 0, 'COMMA': 1, 'PERIOD': 2, 'QUESTION': 3}
-punctuation_dict = {'0PERIOD': 0,
- '0COMMA': 1,
- '0QUESTION': 2,
- '0COLON': 3,
- '0SEMICOLON': 4,
- '1PERIOD': 5,
- '1COMMA': 6,
- '1QUESTION': 7,
- '1COLON': 8,
- '1SEMICOLON': 9}
+punctuation_dict = {'0O': 0,
+ '0PERIOD': 1,
+ '0COMMA': 2,
+ '0QUESTION': 3,
+ '0COLON': 4,
+ '0SEMICOLON': 5,
+ '1O': 6,
+ '1PERIOD': 7,
+ '1COMMA': 8,
+ '1QUESTION': 9,
+ '1COLON': 10,
+ '1SEMICOLON': 11}
 
 
 # pretrained model name: (model class, model tokenizer, output dimension, token style)
