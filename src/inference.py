@@ -89,7 +89,19 @@ def inference():
     sequence_len = args.sequence_length
     result = ""
     decode_idx = 0
-    punctuation_map = {0: '', 1: ',', 2: '.', 3: '?'}
+    capit_idx= 5
+    punctuation_map = {0: '',
+                        1: '.',
+                        2: ',',
+                        3: '?',
+                        4: ':',
+                        5: ';',
+                        6: '',
+                        7: '.',
+                        8: ',',
+                        9: '?',
+                        10: ':',
+                        11: ';'}
 
     while word_pos < len(words):
         x = [bos]
@@ -139,7 +151,10 @@ def inference():
                 print(d - c)
         for i in range(y_mask.shape[0]):
             if y_mask[i] == 1:
-                result += words_original_case[decode_idx] + punctuation_map[y_predict[i].item()] + ' '
+                word = words_original_case[decode_idx] 
+                if y_predict[i].item() > capit_idx:
+                    word = word.capitalize()
+                result += word + punctuation_map[y_predict[i].item()] + ' '
                 decode_idx += 1
     # print('Punctuated text')
     # print(result)
