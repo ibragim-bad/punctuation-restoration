@@ -121,10 +121,13 @@ class DeepPunctuation(nn.Module):
         if distil:
           hs = out.hidden_states
         # (B, N, E) -> (N, B, E)
+
         x = torch.transpose(x, 0, 1)
+
         #x, (_, _) = self.lstm(x)
         x = self.transformer(x)
         # (N, B, E) -> (B, N, E)
+
         x = torch.transpose(x, 0, 1)
         x = self.drop1(x)
         # x = self.linear(x)
