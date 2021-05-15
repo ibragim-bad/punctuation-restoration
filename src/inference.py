@@ -60,6 +60,19 @@ with open(args.student) as f:
 #deep_punctuation = Student(cfg)
 deep_punctuation.to(device)
 
+def postprocess_result(txt):
+    txt = ''.join([txt[0].upper(), txt[1:]])
+    
+    if txt[-2] in ',:\-–.!;?':
+        txt = txt[:-2] + '.'
+    else:
+        txt = txt[:-1] = '.'
+
+    txt = txt.replace('нетолог', 'Нетолог')
+
+    return txt
+
+
 def inference():
     deep_punctuation.load_state_dict(torch.load(st_model_save_path, map_location=torch.device(device)))
     deep_punctuation.eval()
@@ -89,10 +102,10 @@ def inference():
     sequence_len = args.sequence_length
     result = ""
     decode_idx = 0
-    capit_idx= 5
+    
     punctuation_map = {0: '',
-                        1: '.',
-                        2: ',',
+                        1: ',',
+                        2: '.',
                         3: '?',
                         4: ':',
                         5: ';',
@@ -106,6 +119,7 @@ def inference():
                         13: ';',
                         14: '-',
                         15: '\n'}
+    capit_idx= len(punctuation_map)//2
 
     while word_pos < len(words):
         x = [bos]
@@ -148,6 +162,15 @@ def inference():
                 c = datetime.now()
                 y_predict = deep_punctuation(x, attn_mask)
                 y_predict = y_predict.view(-1, y_predict.shape[2])
+
+                # y_predict = torch.nn.functional.softmax(y_predict)
+
+                # threshold = torch.tensor([[0.5, 0.75, 0.75, 0.35, 0.35, 0.35, 0.35,0.35,
+                #                             0.5, 0.75, 0.75, 0.35, 0.35, 0.35, 0.35, 0.35]]*len(y_predict))
+                
+                # Zeros = torch.zeros(y_predict.size())
+                # y_predict = torch.where(y_predict > threshold, y_predict, Zeros)
+
                 y_predict = torch.argmax(y_predict, dim=1).view(-1)
                 d = datetime.now()
                 print(f'words len {len(words)}')
@@ -156,12 +179,18 @@ def inference():
         for i in range(y_mask.shape[0]):
             if y_mask[i] == 1:
                 word = words_original_case[decode_idx] 
-                if y_predict[i].item() > capit_idx:
+                
+                if y_predict[i].item() >= capit_idx:
                     word = word.capitalize()
-                result += word + punctuation_map[y_predict[i].item()] + ' '
+                punc = punctuation_map[y_predict[i].item()]
+                if punc !='\n':
+                    punc = punc + ' '
+                result += word + punc
                 decode_idx += 1
     # print('Punctuated text')
     # print(result)
+    result = postprocess_result(result)
+
     with open(args.out_file, 'w', encoding='utf-8') as f:
         f.write(result)
 
