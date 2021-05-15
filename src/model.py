@@ -102,7 +102,7 @@ class DeepPunctuation(nn.Module):
         else:
             hidden_size = lstm_dim
         #self.lstm = nn.LSTM(input_size=bert_dim, hidden_size=hidden_size, num_layers=1, bidirectional=True)
-        self.transformer = nn.TransformerEncoderLayer(d_model=hidden_size, nhead=8)
+        self.transformer = nn.TransformerEncoderLayer(bert_dim, dim_feedforward=bert_dim*4, nhead=8)
         self.relu = nn.ReLU()
         #self.linear = nn.Linear(in_features=hidden_size*2, out_features=hidden_size)
         self.drop1 = nn.Dropout(0.4)
