@@ -107,7 +107,7 @@ class DeepPunctuation(nn.Module):
         #self.linear = nn.Linear(in_features=hidden_size*2, out_features=hidden_size)
         self.drop1 = nn.Dropout(0.4)
         #self.drop2 = nn.Dropout(0.4)
-        self.linear2 = nn.Linear(in_features=hidden_size, out_features=len(punctuation_dict))
+        self.linear2 = nn.Linear(in_features=bert_dim*4, out_features=len(punctuation_dict))
 
     def forward(self, x, attn_masks, distil=False):
         if len(x.shape) == 1:
